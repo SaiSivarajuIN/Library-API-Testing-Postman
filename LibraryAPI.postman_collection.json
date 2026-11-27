@@ -1,0 +1,173 @@
+{
+  "info": {
+    "_postman_id": "be0c945e-99d3-469b-89ce-dd36ae8b8711",
+    "name": "LibraryAPI",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "53765234",
+    "_collection_link": "https://go.postman.co/collection/53765234-be0c945e-99d3-469b-89ce-dd36ae8b8711?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Add Book",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let jsonData = pm.response.json() // Parse the JSON response body\r\nlet bookID = jsonData.ID; // Extract the book ID from the response\r\nlet req = JSON.parse(pm.request.body.raw) // Parse the request body as JSON, to get the aisle values from the request body.\r\n\r\n// Store the book ID in a collection variable for future use\r\npm.environment.set(\"bookID\", bookID);\r\n\r\n// Genrate the expected book ID value based on the ISBN and aisle values from the request body.\r\nfunction genrateBookID(){\r\n    let expect_val = req.isbn + req.aisle\r\n    console.log(expect_val)\r\n    return expect_val; // Return the expected book ID value.\r\n}\r\n\r\n\r\nfunction cleanUpScript(){\r\n    let book_ID = genrateBookID()\r\n    pm.environment.set(\"bookID\", book_ID) // Set the book ID as an environment variable so the next **Delete Book** request can reuse it without conflicts with other tests.\r\n    pm.execution.setNextRequest(\"Delete Book\")\r\n\r\n    try{\r\n        pm.response.to.have.status(200);\r\n        pm.expect(jsonData).have.property(\"Msg\")\r\n        pm.expect(jsonData.Msg).to.equal(\"successfully added\");\r\n    }\r\n    catch(err){\r\n        if(jsonData.Msg.include(\"Book Already Exists\")){\r\n            cleanUpScript()\r\n        }\r\n    }\r\n    \r\n};\r\n\r\npm.test(\"Headers cookies\", function (){\r\n    pm.response.to.have.header(\"Content-Type\");\r\n    pm.expect(pm.response.headers.get(\"Content-Type\")).to.equal(\"application/json;charset=UTF-8\");\r\n})\r\n\r\n\r\npm.test(\"check the responsetime and responsetext\", function () {\r\n    pm.expect(pm.response.responseTime).to.be.below(2000); // less than 2 seconds\r\n    pm.expect(pm.response.text()).to.include(\"successfully added\")\r\n})\r\n\r\n// ID logic validation. This test checks if the ID returned in the response matches the expected value based on the ISBN and aisle values from the request body.\r\npm.test(\"ID logic validation\", function(){\r\n    pm.expect(genrateBookID()).to.equal(bookID)\r\n})\r\n\r\n\r\n\r\n\r\n\r\n"
+            ]
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Generate a random ISBN number using the company code and a random integer.\r\nlet code = pm.collectionVariables.get(\"companyCode\") // company code is stored in a collection variable\r\n\r\nlet value = pm.variables.replaceIn('{{$randomInt}}') // random integer is stored in a pre-request script variable\r\n\r\npm.collectionVariables.set(\"isbn\", code + value) // set the ISBN number in a collection variable\r\n\r\npm.collectionVariables.set(\"book_author\", \"Sai\") // set the book auther in a collection\r\npm.collectionVariables.set(\"book_name\", \"Postman API\") // set the book name in a collection variable\r\n\r\n/*pm.collectionVariables.set(\"book_author\", pm.iterationData.get(\"book_author\")) // set the author name in a collection variable from csv file\r\n\r\npm.collectionVariables.set(\"book_name\", pm.iterationData.get(\"book_name\")) // set the book name in a collection variable from csv file*/"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"name\": \"{{book_name}}\",\r\n    \"isbn\": \"{{isbn}}\", // rendom isbn\r\n    \"aisle\": \"00\",\r\n    \"author\": \"{{book_author}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/Library/Addbook.php",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "Library",
+            "Addbook.php"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Book",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "onData = pm.response.json();\n\nlet jsonSchema = {\n  \"type\": \"array\",\n  \"items\": [\n    {\n      \"type\": \"object\",\n      \"properties\": {\n        \"book_name\": {\n          \"type\": \"string\"\n        },\n        \"isbn\": {\n          \"type\": \"string\"\n        },\n        \"aisle\": {\n          \"type\": \"string\"\n        },\n        \"author\": {\n          \"type\": \"string\"\n        }\n      },\n      \"required\": [\n        \"book_name\",\n        \"isbn\",\n        \"aisle\",\n        \"author\"\n      ]\n    }\n  ]\n}\n\n\npm.test(\"Check whether the book exists.\", function () {\n    pm.response.to.have.status(200);\n    \n    pm.expect(jsonData[0].isbn).to.eql(pm.collectionVariables.get(\"isbn\"));\n\n    pm.expect(jsonData[0].author).to.eql(pm.collectionVariables.get(\"book_author\")); // author_name is a collection variable\n    \n});\n\npm.test(\"Check the JSON schema.\", function () {\n    pm.response.to.have.jsonSchema(jsonSchema);\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/Library/GetBook.php?ID={{bookID}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "Library",
+            "GetBook.php"
+          ],
+          "query": [
+            {
+              "key": "ID",
+              "value": "{{bookID}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Book",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let jsonData = pm.response.json()\r\nlet jsonSchema = {\r\n  \"type\": \"object\",\r\n  \"properties\": {\r\n    \"msg\": {\r\n      \"type\": \"string\"\r\n    }\r\n  },\r\n  \"required\": [\r\n    \"msg\"\r\n  ]\r\n}\r\n\r\npm.test(\"Status code is 200\", function () {\r\n    pm.response.to.have.status(200);\r\n    pm.expect(jsonData.msg).to.eql(\"book is successfully deleted\");\r\n});\r\n\r\npm.test(\"Check the JSON schema.\", function () {\r\n    pm.response.to.have.jsonSchema(jsonSchema);\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"ID\": \"{{bookID}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/Library/DeleteBook.php",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "Library",
+            "DeleteBook.php"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "companyCode",
+      "value": ""
+    },
+    {
+      "key": "isbn",
+      "value": ""
+    },
+    {
+      "key": "book_author",
+      "value": ""
+    },
+    {
+      "key": "book_name",
+      "value": ""
+    }
+  ]
+}
